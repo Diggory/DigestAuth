@@ -136,6 +136,7 @@ class DigestAuthSample {
 		
 
 		//	Basic request first, no auth yet.
+		print("Initial http request without any auth")
 		do {
 			let request = HTTPClientRequest(url: serverURL)
 			let response = try await httpClient.execute(request, timeout: .seconds(30))
@@ -355,6 +356,8 @@ class DigestAuthSample {
 			authHeaderString.append(digestNonceCount)
 		}
 		
+		print("Second http request with an auth header")
+
 		print("authorized request header: \(authHeaderString)")
 
 		var authorisedRequest = HTTPClientRequest(url: serverURL)
@@ -374,8 +377,6 @@ class DigestAuthSample {
 			print("authorised request failed:", error)
 			return
 		}
-
-		
 		
 	}
 	
