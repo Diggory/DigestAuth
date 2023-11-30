@@ -116,6 +116,7 @@ class DigestAuthSample {
 		var digestParamsDict = [DigestParameterKey: String]()
 		print("DigestAuthSample going...")
 		
+		///	Takes a string of the form 'algorithm="MD5"' and turns it into a labelled tuple.
 		func paramStringToTuple(_ param: String) -> (key: String, value: String)? {
 			//	e.g. algorithm="MD5"
 			let keyValueArray = param.components(separatedBy: "=")
@@ -126,7 +127,7 @@ class DigestAuthSample {
 			let key = keyValueArray[0]
 			var value = keyValueArray[1]
 			
-			//	Value should be wrapped in quote marks (sometimes?  Accept it anyway…)
+			//	Value should be wrapped in quote marks (sometimes.  Accept it anyway…)
 			if !(value.first == "\"" && value.last == "\"") {
 				print("Note: paramter (\(key)) value is not wrapped in quotes: \(value)")
 			} else {
@@ -180,7 +181,7 @@ class DigestAuthSample {
 					print("Badly formed Digest Parameter! \(param)")
 				}
 			}
-			print("Digest Parameter: \(digestParamsDict)")
+			print("Digest Parameters: \(digestParamsDict)")
 
 			/*
 			e.g. of digestParamsDict:
@@ -214,7 +215,7 @@ class DigestAuthSample {
 			return
 		}
 		
-		//	Make second request, with digest-response header.
+		//	Make second request, with digest-response in an 'Authorization' header.
 		
 		//	Do the hashing....
 		
@@ -268,6 +269,7 @@ class DigestAuthSample {
 		default:
 			//	Used when qop is auth or unspecified
 			//	HA2 = MD5(method:digestURI)
+			//	FIXME: Method is fixed here.  Also, is this the method that they mean?
 			ha2_methodURIHash = MD5(string: "GET:\(serverURL)")
 		}
 
@@ -322,7 +324,7 @@ class DigestAuthSample {
 
 		//	FIXME: Should be a one-time number.
 		//	Client nonce
-		let digestCNonce = "cnonce=\"MyClientNonce\", "
+		let digestCNonce = "cnonce=\"00000000\", "
 		if digestParamsDict[.qop] != nil {
 			authHeaderString.append(digestCNonce)
 		}
