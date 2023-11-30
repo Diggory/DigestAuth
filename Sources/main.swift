@@ -30,41 +30,11 @@ cavemanLineBreak("Hello, world!  DigestAuth")
 
  */
 
-
-
-//	MARK: - Extensions -
-
-extension DataProtocol {
-	///	emits data in 0x Hex String format  (0xDEADBEEF etc...)
-	var hexString: String {
-		let hexLen = self.count * 2
-		var hexChars = [UInt8](repeating: 0, count: hexLen)
-		var offset = 0
-		
-		self.regions.forEach { (_) in
-			for i in self {
-				hexChars[Int(offset * 2)] = itoh((i >> 4) & 0xF)
-				hexChars[Int(offset * 2 + 1)] = itoh(i & 0xF)
-				offset += 1
-			}
-		}
-		
-		return String(bytes: hexChars, encoding: .utf8)!
-	}
-}
-
-//	MARK: - Global Constants -
-
-let charA = UInt8(UnicodeScalar("a").value)
-let char0 = UInt8(UnicodeScalar("0").value)
-
 //	MARK: - Free Functions -
 
-func itoh(_ value: UInt8) -> UInt8 {
-	return (value > 9) ? (charA + value - 10) : (char0 + value)
-}
-
 ///	Takes a Swift String and returns it hashed by MD5 (also in String format)
+///	Taken from:
+///	https://stackoverflow.com/questions/32163848/how-can-i-convert-a-string-to-an-md5-hash-in-ios-using-swift
 func MD5(string: String) -> String {
 	let digest = Insecure.MD5.hash(data: Data(string.utf8))
 	return digest.map {
