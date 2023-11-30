@@ -315,9 +315,19 @@ class DigestAuthSample {
 		//	Re-use from original response: Nonce
 		let digestNonce = "nonce=\"\(digestParamsDict[.nonce] ?? "")\", "
 		authHeaderString.append(digestNonce)
+		
 		//	The URL that we are requesting
-		let digestURI = "uri=\"\(serverURL)\", "
-		authHeaderString.append(digestURI)
+//		let digestURI = "uri=\"\(serverURL)\", "
+		let fullURL = URL(string:serverURL)
+		if #available(macOS 13.0, *) {
+			let path = fullURL?.path()
+			let digestURI = "uri=\"\(path ?? "/")\", "
+			authHeaderString.append(digestURI)
+		} else {
+			print("I'm not expecting this code to be run before macOS 13...")
+			return
+		}
+
 		//	The hash that we calculated containing the password and other data.
 		let digestResponse = "response=\"\(responseHash)\", "
 		authHeaderString.append(digestResponse)
