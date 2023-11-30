@@ -365,6 +365,7 @@ class DigestAuthSample {
 		authHeaderString.append(digestNonce)
 		
 		//	The URL that we are requesting
+		
 		//	Absolute URI
 		let digestURI = "uri=\"\(serverURL)\", "
 		authHeaderString.append(digestURI)
