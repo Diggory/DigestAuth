@@ -35,6 +35,7 @@ cavemanLineBreak("Hello, world!  DigestAuth")
 //	MARK: - Extensions -
 
 extension DataProtocol {
+	///	emits data in 0x Hex String format  (0xDEADBEEF etc...)
 	var hexString: String {
 		let hexLen = self.count * 2
 		var hexChars = [UInt8](repeating: 0, count: hexLen)
@@ -63,6 +64,7 @@ func itoh(_ value: UInt8) -> UInt8 {
 	return (value > 9) ? (charA + value - 10) : (char0 + value)
 }
 
+///	Takes a Swift String and returns it hashed by MD5 (also in String format)
 func MD5(string: String) -> String {
 	let digest = Insecure.MD5.hash(data: Data(string.utf8))
 	return digest.map {
@@ -106,18 +108,43 @@ class DigestAuthSample {
 	}
 
 	///	Keys used in the Digest Header
+	///	https://www.rfc-editor.org/rfc/rfc2617#section-3.2.1
 	enum DigestParameterKey: String, Hashable {
+		//	Response Keys
+		
+		///	A server-specified data string which should be uniquely generated each time a 401 response is made
 		case nonce
+		///	a quoted string of one or more tokens indicating the "quality of protection" values supported by the server
 		case qop
+		///	 A flag, indicating that the previous request from the client was rejected because the nonce value was stale  
+		///	 (TRUE/FALSE)
 		case stale
+		///	A quoted, space-separated list of URIs, as specified in RFC XURI [7], that define the protection space
 		case domain
+		///	A string to be displayed to users so they know which username and password to use
 		case realm
+		///	A string indicating a pair of algorithms used to produce the digest and a checksum. 
+		///	If this is not present it is assumed to be "MD5"
 		case algorithm
+		///	A string of data, specified by the server, which should be returned by the client unchanged 
+		///	in the Authorization header of subsequent requests with URIs in the same protection space
 		case opaque
-		case cnonce
+		
+		//	Re-request keys
 
+		///	This MUST be specified if a qop directive is sent (see above), and
+		///	MUST NOT be specified if the server did not send a qop directive in
+		///	the WWW-Authenticate header field.  The cnonce-value is an opaque
+		///	quoted string value provided by the client and used by both client
+		///	and server to avoid chosen plaintext attacks
+		case cnonce
+		///	A string of 32 hex digits computed as defined below, which proves
+		///	that the user knows a password
 		case response
+		///	The user's name in the specified realm.
 		case username
+		///	The URI from Request-URI of the Request-Line; duplicated here
+		///	because proxies are allowed to change the Request-Line in transit.
 		case digesturi = "digest-uri"
 	}
 	
@@ -240,6 +267,7 @@ class DigestAuthSample {
 
 		cavemanLineBreak("using hashing algo: \(hashingAlgo) and QOP directive: \(qopDirective)")
 		
+		//	HA1 and HA2 as per: https://en.wikipedia.org/wiki/Digest_access_authentication
 		//	The HA1 and HA2 values used in the computation of the response are the hexadecimal representation (in lowercase) of the MD5 hashes respectively.
 		
 		//	Credentials Hash...
@@ -249,6 +277,7 @@ class DigestAuthSample {
 		 If the algorithm directive's value is "MD5-sess", then HA1 is
 			HA1 = MD5(MD5(username:realm:password):nonce:cnonce)
 		 */
+		
 		
 		var ha1_credentialsHash: String
 		switch hashingAlgo {
@@ -390,7 +419,7 @@ class DigestAuthSample {
 	func go() async {
 		cavemanBreakSection(#function)
 
-		var digestParamsDict = [DigestParameterKey: String]()
+		var digestParamsDict = DigestParametersDictionary()
 		
 		//	Basic request first, no auth yet.
 		print("Initial HTTP request without any authorisation.")
@@ -437,6 +466,7 @@ class DigestAuthSample {
 		cavemanLineBreak("Authorized request header: \(authHeaderString)")
 		var authorisedRequest = HTTPClientRequest(url: serverURL)
 
+		///	Name of theHTTP  header in the second HTTP request which inlcludes digest auth information.
 		let authHeaderName = "Authorization"
 		authorisedRequest.headers.add(name: authHeaderName, value: authHeaderString)
 		cavemanLineBreak("All headers: \(authorisedRequest.headers)")
@@ -464,6 +494,7 @@ class DigestAuthSample {
 //	Main entry point.
 cavemanBreakSection("Main Entry")
 
+///	Address of the endpoint on the server that we are tesing against
 let serverURL = "http://httpbin.org/digest-auth/auth/testUserName/testPassword"
 let digestAuthSample = DigestAuthSample(serverURL: serverURL, username: "testUserName", password: "testPassword")
 //let digestAuthSample = DigestAuthSample(serverURL: "http://192.168.1.36/ISAPI/Streaming/channels/101/picture", username: "gateControl", password: "badgers123")
