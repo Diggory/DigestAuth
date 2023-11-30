@@ -1,10 +1,8 @@
-print("Hello, world!  DigestAuth")
-print("")
-
 import AsyncHTTPClient
 import Crypto
 import Foundation
 
+cavemanLineBreak("Hello, world!  DigestAuth")
 
 /*
  
@@ -72,6 +70,7 @@ func MD5(string: String) -> String {
 	}.joined()
 }
 
+///	Prints a new caveman debugging section (spaces out print statements for functions)
 func cavemanBreakSection(_ functionName: String) {
 	print("")
 	print(functionName)
@@ -87,6 +86,7 @@ func cavemanBreakSection(_ functionName: String) {
 	print("")
 }
 
+///	Prints a newline to separate caveman debugging statements
 func cavemanLineBreak(_ functionName: String) {
 	print(functionName)
 	print(" ")
@@ -95,6 +95,7 @@ func cavemanLineBreak(_ functionName: String) {
 
 //	MARK: - Classes -
 
+///	A Simple class to demonstrate Digest Auth using async-http-client
 class DigestAuthSample {
 	typealias DigestParametersDictionary = [DigestParameterKey: String]
 
@@ -104,6 +105,7 @@ class DigestAuthSample {
 		self.password = password
 	}
 
+	///	Keys used in the Digest Header
 	enum DigestParameterKey: String, Hashable {
 		case nonce
 		case qop
@@ -119,28 +121,37 @@ class DigestAuthSample {
 		case digesturi = "digest-uri"
 	}
 	
+	///	Hashing algorithms  used in Digest Auth
+	///	Not exhaustive...
 	enum HashingAlgorithm: String {
 		case MD5 = "MD5"
 		case MD5sess = "MD5-sess"
 		case unhandled
 	}
 	
+	///	Quailty of Protections levels used in Digest Auth
 	enum QOPDirective: String {
 		case auth = "auth"
 		case authInt = "auth-int"
 		case unhandled
 	}
 
+	///	The address of the endpoint that we are trying to reach
 	var serverURL: String
+	///	The username we will be providing to the server for authentication
 	var username: String
+	///	The password we will be providing to the server for authentication
 	var password: String
-	
+
+	///	Async HTTP client instance
 	var httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
 		
+	///	Currently does nothing…
 	func startUp() {
 		cavemanBreakSection(#function)
 	}
 	
+	///	Required before we close-down the app - cleans-up the HTTP Client objects…
 	func shutdown() async {
 		cavemanBreakSection(#function)
 
@@ -186,16 +197,13 @@ class DigestAuthSample {
 		}
 		
 		cavemanLineBreak("Digest Parameters: \(digestParamsDict)")
-
 		return digestParamsDict
 	}
 	
 	
 	
-	///	Takes a string of the form 'algorithm="MD5"' and turns it into a labelled tuple.
+	///	Takes a string of the form 'key="value"' and turns it into a labelled tuple.
 	func digestParamStringToTuple(_ param: String) -> (key: String, value: String)? {
-//		print("digestChallengeParametersDictionary()")
-
 		//	e.g. algorithm="MD5"
 		let keyValueArray = param.components(separatedBy: "=")
 		if keyValueArray.count != 2 {
@@ -217,7 +225,7 @@ class DigestAuthSample {
 	}
 	
 
-	///	Requiered Digest Auth Hashing reduced to one function.
+	///	Digest Auth Hashing requirements,  reduced to one function.
 	func doHashing(withDigestParameters digestParamsDict: DigestParametersDictionary) -> String? {
 		cavemanBreakSection(#function)
 
@@ -230,10 +238,9 @@ class DigestAuthSample {
 			return nil
 		}
 
-		print("using hashing algo: \(hashingAlgo) and QOP directive: \(qopDirective)")
-
-		//	The HA1 and HA2 values used in the computation of the response are the hexadecimal representation (in lowercase) of the MD5 hashes respectively.
+		cavemanLineBreak("using hashing algo: \(hashingAlgo) and QOP directive: \(qopDirective)")
 		
+		//	The HA1 and HA2 values used in the computation of the response are the hexadecimal representation (in lowercase) of the MD5 hashes respectively.
 		
 		//	Credentials Hash...
 		/*
@@ -379,6 +386,7 @@ class DigestAuthSample {
 	}
 	
 	
+	///	Run the main test - request a resource from an HTTP server that requires digest auth credentials
 	func go() async {
 		cavemanBreakSection(#function)
 
@@ -411,8 +419,6 @@ class DigestAuthSample {
 			print("basic request failed:", error)
 			return
 		}
-
-		
 		
 		//	Make a second request, with digest-response in an 'Authorization' header.
 		
@@ -423,12 +429,12 @@ class DigestAuthSample {
 			return
 		}
 		
-		cavemanBreakSection("Second http request with an auth header…")
 		//	Build the new request including the digest response header
+		cavemanBreakSection("Second http request with an auth header…")
 		//	Build the auth header
 		let authHeaderString = buildAuthorisationHeader(digestParameters: digestParamsDict, responseHashString: responseHashString!)
 
-		print("Authorized request header: \(authHeaderString)")
+		cavemanLineBreak("Authorized request header: \(authHeaderString)")
 		var authorisedRequest = HTTPClientRequest(url: serverURL)
 
 		let authHeaderName = "Authorization"
@@ -440,7 +446,7 @@ class DigestAuthSample {
 			cavemanLineBreak("Authorised HTTP request response: \(response)")
 
 			let body = try await response.body.collect(upTo: 1024 * 1024) // 1 MB
-			print(String(buffer: body))
+			cavemanLineBreak("Response Body: \(String(buffer: body))")
 
 			//	What status did we get back?
 			cavemanLineBreak("Response status: \(response.status)")
