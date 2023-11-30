@@ -1,10 +1,10 @@
-#Digest Auth Sample
+# Digest Auth Sample
 
 A simple demo project which uses [AsyncHTTPClient](https://github.com/swift-server/async-http-client) to request a resource from a web server that requires diget-auth authentication. 
 
 [Wikipedia article on Digest Auth](https://en.wikipedia.org/wiki/Digest_access_authentication)
 
-##Pseudo Code
+## Pseudo Code
  
  
 From a [StackOverflow question](https://stackoverflow.com/questions/5288150/is-digest-authentication-possible-with-jquery/5288679#5288679)
