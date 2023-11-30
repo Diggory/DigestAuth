@@ -92,10 +92,6 @@ class DigestAuthSample {
 		case unhandled
 	}
 
-
-	//	http://192.168.1.36/ISAPI/Streaming/channels/101/picture	gateControl:badgers123
-	//	let serverURL = "http://192.168.1.36/ISAPI/Streaming/channels/101/picture"
-
 	var serverURL: String
 	var username: String
 	var password: String
@@ -269,7 +265,7 @@ class DigestAuthSample {
 		default:
 			//	Used when qop is auth or unspecified
 			//	HA2 = MD5(method:digestURI)
-			//	FIXME: Method is fixed here.  Also, is this the method that they mean?
+			//	FIXME: Method is fixed here.  Also, is this the type of method that they mean?
 			ha2_methodURIHash = MD5(string: "GET:\(serverURL)")
 		}
 
