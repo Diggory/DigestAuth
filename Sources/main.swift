@@ -1,10 +1,15 @@
 print("Hello, world!  DigestAuth")
+print("")
+
 import AsyncHTTPClient
 import Crypto
 import Foundation
 
 
 /*
+ 
+ PseudoCode
+ 
  1	Make basic HTTP request to remote server (no auth in header)
 
  2	Server responds with a "401 Unauthorized" status code and a WWW-Authenticate header field (the digest-challenge)
@@ -29,6 +34,7 @@ import Foundation
 
 
 
+//	MARK: - Extensions -
 
 extension DataProtocol {
 	var hexString: String {
@@ -48,22 +54,55 @@ extension DataProtocol {
 	}
 }
 
+//	MARK: - Global Constants -
+
 let charA = UInt8(UnicodeScalar("a").value)
 let char0 = UInt8(UnicodeScalar("0").value)
+
+//	MARK: - Free Functions -
 
 func itoh(_ value: UInt8) -> UInt8 {
 	return (value > 9) ? (charA + value - 10) : (char0 + value)
 }
 
+func MD5(string: String) -> String {
+	let digest = Insecure.MD5.hash(data: Data(string.utf8))
+	return digest.map {
+		String(format: "%02hhx", $0)
+	}.joined()
+}
 
+func cavemanBreakSection(_ functionName: String) {
+	print("")
+	print(functionName)
+	var number = 0
+	var underscore = ""
+	repeat {
+		underscore += "="
+		number += 1
+	} while number <= functionName.count - 1
+
+	
+	print(underscore)
+	print("")
+}
+
+func cavemanLineBreak(_ functionName: String) {
+	print(functionName)
+	print(" ")
+}
+
+
+//	MARK: - Classes -
 
 class DigestAuthSample {
+	typealias DigestParametersDictionary = [DigestParameterKey: String]
+
 	internal init(serverURL: String, username: String, password: String)  {
 		self.serverURL = serverURL
 		self.username = username
 		self.password = password
 	}
-	
 
 	enum DigestParameterKey: String, Hashable {
 		case nonce
@@ -97,132 +136,98 @@ class DigestAuthSample {
 	var password: String
 	
 	var httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
-	
-	func startUp() {
 		
+	func startUp() {
+		cavemanBreakSection(#function)
 	}
 	
 	func shutdown() async {
+		cavemanBreakSection(#function)
+
 		// it is important to shutdown the httpClient after all requests are done, even if one failed
 		try! await httpClient.shutdown()
 	}
 	
-	func go() async {
+	//	Digest Auth manipulation Functions
+	
+	///	Get the digest auth parameters from the Reponse object that the server gives us
+	func digestChallengeParametersDictionary(fromResponse response: HTTPClientResponse) -> DigestParametersDictionary? {
+		cavemanBreakSection(#function)
 		let authenticateHeaderName = "WWW-Authenticate"
 		var digestParamsDict = [DigestParameterKey: String]()
-		print("DigestAuthSample going...")
-		
-		///	Takes a string of the form 'algorithm="MD5"' and turns it into a labelled tuple.
-		func paramStringToTuple(_ param: String) -> (key: String, value: String)? {
-			//	e.g. algorithm="MD5"
-			let keyValueArray = param.components(separatedBy: "=")
-			if keyValueArray.count != 2 {
-				print("Error: paramter is not correctly formed: \(param)")
-				return nil
-			}
-			let key = keyValueArray[0]
-			var value = keyValueArray[1]
-			
-			//	Value should be wrapped in quote marks (sometimes.  Accept it anyway…)
-			if !(value.first == "\"" && value.last == "\"") {
-				print("Note: paramter (\(key)) value is not wrapped in quotes: \(value)")
-			} else {
-				//	Trim quotes
-				value = String(value.dropLast())
-				value = String(value.dropFirst())
-			}
-			return (key: key, value: value)
+
+		//	Look for the digest challenge (WWW-Authenticate header)
+		guard let digestChallengeHeader = response.headers[authenticateHeaderName].first else {
+			print("Cannot find Authentication Header in response.")
+			return nil
 		}
 		
-
-		//	Basic request first, no auth yet.
-		print("Initial http request without any auth")
-		do {
-			let request = HTTPClientRequest(url: serverURL)
-			let response = try await httpClient.execute(request, timeout: .seconds(30))
-			print("HTTP head", response)
-			let body = try await response.body.collect(upTo: 1024 * 1024) // 1 MB
-			print(String(buffer: body))
-			
-			//	should be 401
-			if response.status != .unauthorized {
-				print("Hmm, we should have had an 'unauthorised' status, but instead we got: \(response.status)")
-				return
-			}
-			
-			//	We are unauthorsied.  Look for the digest challenge (WWW-Authenticate header)
-			guard let digestChallengeHeader = response.headers[authenticateHeaderName].first else {
-				print("Cannot find Authentication Header in response.")
-				return
-			}
-			
-			//	Digest Challenge header should start with 'Digest'
-			let digestPreamble = "Digest "
-			if !digestChallengeHeader.hasPrefix(digestPreamble) {
-				print("digestChallenge does not start with '\(digestPreamble)'")
-				return
-			}
-			
-			//	Get digest paramters
-			let digestChallengeParamsString = digestChallengeHeader.dropFirst(digestPreamble.count)
-			let digestParams = digestChallengeParamsString.components(separatedBy: ", ")
-			
-			for param in digestParams {
-				if let paramTuple = paramStringToTuple(param) {
-					if let paramKeyEnum = DigestParameterKey(rawValue: paramTuple.key) {
-						digestParamsDict[paramKeyEnum] = paramTuple.value
-					} else {
-						print("We don't have a suitable case in enum type DigestParameterKey for this digest parameter key \(param) !")
-					}
+		//	Digest Challenge header should start with 'Digest'
+		let digestPreamble = "Digest "
+		if !digestChallengeHeader.hasPrefix(digestPreamble) {
+			print("digestChallenge does not start with '\(digestPreamble)'")
+			return nil
+		}
+		
+		//	Get digest paramters
+		let digestChallengeParamsString = digestChallengeHeader.dropFirst(digestPreamble.count)
+		let digestParams = digestChallengeParamsString.components(separatedBy: ", ")
+		
+		for param in digestParams {
+			if let paramTuple = digestParamStringToTuple(param) {
+				if let paramKeyEnum = DigestParameterKey(rawValue: paramTuple.key) {
+					digestParamsDict[paramKeyEnum] = paramTuple.value
 				} else {
-					print("Badly formed Digest Parameter! \(param)")
+					print("We don't have a suitable case in enum type DigestParameterKey for this digest parameter key \(param) !")
 				}
+			} else {
+				print("Badly formed Digest Parameter! \(param)")
 			}
-			print("Digest Parameters: \(digestParamsDict)")
-
-			/*
-			e.g. of digestParamsDict:
-			 
-			Digest Params: [
-				 "nonce": "3ea8908301a9edbc:9a68889df518fb53f8ee363a:18c20795603:f",
-				 "qop": "auth",
-				 "stale": "FALSE",
-				 "domain": "/",
-				 "realm": "9a68889df518fb53f8ee363a",
-				 "algorithm": "MD5",
-				 "opaque": "799d5"
-			 ]
-			 
-			 or:
-			 
-			 [
-			 DigestAuth.DigestAuthSample.DigestParameterKey.stale: "FALSE",
-			 DigestAuth.DigestAuthSample.DigestParameterKey.qop: "auth",
-			 DigestAuth.DigestAuthSample.DigestParameterKey.nonce: "c098528655cb96a8a9e442ddd2e42564", 
-			 DigestAuth.DigestAuthSample.DigestParameterKey.algorithm: "MD5",
-			 DigestAuth.DigestAuthSample.DigestParameterKey.realm: "me@kennethreitz.com",
-			 DigestAuth.DigestAuthSample.DigestParameterKey.opaque: "8c9c49b7b29ee994e485a3aa0239db31"
-			 ]
-
-			 
-			 */
-			
-		} catch {
-			print("basic request failed:", error)
-			return
 		}
 		
-		//	Make second request, with digest-response in an 'Authorization' header.
+		cavemanLineBreak("Digest Parameters: \(digestParamsDict)")
+
+		return digestParamsDict
+	}
+	
+	
+	
+	///	Takes a string of the form 'algorithm="MD5"' and turns it into a labelled tuple.
+	func digestParamStringToTuple(_ param: String) -> (key: String, value: String)? {
+//		print("digestChallengeParametersDictionary()")
+
+		//	e.g. algorithm="MD5"
+		let keyValueArray = param.components(separatedBy: "=")
+		if keyValueArray.count != 2 {
+			print("Error: paramter is not correctly formed: \(param)")
+			return nil
+		}
+		let key = keyValueArray[0]
+		var value = keyValueArray[1]
 		
-		//	Do the hashing....
-		
+		//	Value should be wrapped in quote marks (sometimes.  Accept it anyway…)
+		if !(value.first == "\"" && value.last == "\"") {
+			print("Note: paramter (\(key)) value is not wrapped in quotes: \(value)")
+		} else {
+			//	Trim quotes
+			value = String(value.dropLast())
+			value = String(value.dropFirst())
+		}
+		return (key: key, value: value)
+	}
+	
+
+	///	Requiered Digest Auth Hashing reduced to one function.
+	func doHashing(withDigestParameters digestParamsDict: DigestParametersDictionary) -> String? {
+		cavemanBreakSection(#function)
+
 		guard let hashingAlgo = HashingAlgorithm(rawValue: digestParamsDict[.algorithm] ?? "") else {
 			print("Server using a hashing algorithm that we don't yet handle: \(String(describing: digestParamsDict[.algorithm]))")
-			return
+			return nil
 		}
 		guard let qopDirective = QOPDirective(rawValue: digestParamsDict[.qop] ?? "") else {
 			print("Server using a QOP Directive that we don't yet handle: \(String(describing: digestParamsDict[.qop]))")
-			return
+			return nil
 		}
 
 		print("using hashing algo: \(hashingAlgo) and QOP directive: \(qopDirective)")
@@ -262,11 +267,11 @@ class DigestAuthSample {
 		case .authInt:
 			//	HA2 = MD5(method:digestURI:MD5(entityBody))
 			print("authInt qopDirective unimplemented!!!!  What is entityBody?")
-			return
+			return nil
 		default:
 			//	Used when qop is auth or unspecified
 			//	HA2 = MD5(method:digestURI)
-			//	FIXME: Method is fixed here.  Also, is this the type of method that they mean?
+			//	FIXME: Method is fixed here.
 			ha2_methodURIHash = MD5(string: "GET:\(serverURL)")
 		}
 
@@ -299,39 +304,50 @@ class DigestAuthSample {
 			responseHash = MD5(string: "\(ha1_credentialsHash):\(digestParamsDict[.nonce] ?? ""):\(ha2_methodURIHash)")
 		}
 		
-		
-		//	Build the new request including the digest response header
-		
+		//	We made it here!
+		return responseHash
+	}
+	
+	
+	///	Create the digest  authorisation header string required to pass back to the server once we have the parameters that it has passed us.
+	func buildAuthorisationHeader(digestParameters digestParamsDict: DigestParametersDictionary, responseHashString: String) -> String {
+		cavemanBreakSection(#function)
 		//	Build the auth header
 		//	https://www.rfc-editor.org/rfc/rfc2617#section-3.2.1
-		let authHeaderName = "Authorization"
 		var authHeaderString = "Digest "
 		
 		//	Username
 		let digestUsername = "username=\"\(username)\", "
 		authHeaderString.append(digestUsername)
+
 		//	Re-use from original response: Realm
 		let digestRealm = "realm=\"\(digestParamsDict[.realm] ?? "")\", "
 		authHeaderString.append(digestRealm)
+
 		//	Re-use from original response: Nonce
 		let digestNonce = "nonce=\"\(digestParamsDict[.nonce] ?? "")\", "
 		authHeaderString.append(digestNonce)
 		
 		//	The URL that we are requesting
-//		let digestURI = "uri=\"\(serverURL)\", "
-		let fullURL = URL(string:serverURL)
-		if #available(macOS 13.0, *) {
-			let path = fullURL?.path()
-			let digestURI = "uri=\"\(path ?? "/")\", "
-			authHeaderString.append(digestURI)
-		} else {
-			print("I'm not expecting this code to be run before macOS 13...")
-			return
-		}
+		//	Absolute URI
+		let digestURI = "uri=\"\(serverURL)\", "
+		authHeaderString.append(digestURI)
+
+		//	Only the path
+//		let fullURL = URL(string:serverURL)
+//		if #available(macOS 13.0, *) {
+//			let path = fullURL?.path()
+//			let digestURI = "uri=\"\(path ?? "/")\", "
+//			authHeaderString.append(digestURI)
+//		} else {
+//			print("I'm not expecting this code to be run before macOS 13...")
+//			return
+//		}
 
 		//	The hash that we calculated containing the password and other data.
-		let digestResponse = "response=\"\(responseHash)\", "
+		let digestResponse = "response=\"\(responseHashString)\", "
 		authHeaderString.append(digestResponse)
+
 		//	Re-use from original response: Algorithm
 		//	No quotes for algo
 		let digestAlgo = "algorithm=\(digestParamsDict[.algorithm] ?? ""), "
@@ -343,36 +359,91 @@ class DigestAuthSample {
 		if digestParamsDict[.qop] != nil {
 			authHeaderString.append(digestCNonce)
 		}
+
 		//	Re-use from original response: Opaque
 		let digestOpaque = "opaque=\"\(digestParamsDict[.opaque] ?? "")\", "
 		authHeaderString.append(digestOpaque)
+
 		//	Re-use from original response: QOP
 		let digestQOP = "qop=\"\(digestParamsDict[.qop] ?? "")\", "
 		authHeaderString.append(digestQOP)
-		//	Last item, no comma at end...
+
 		//	FIXME: Calculate correct nonce count
-		let digestNonceCount = "nc=\"\("00000001")\" "
+		//	Last item, no comma at end...
+		let digestNonceCount = "nc=\("00000001") "
 		if digestParamsDict[.qop] != nil {
 			authHeaderString.append(digestNonceCount)
 		}
 		
-		print("Second http request with an auth header")
+		return authHeaderString
+	}
+	
+	
+	func go() async {
+		cavemanBreakSection(#function)
 
-		print("authorized request header: \(authHeaderString)")
+		var digestParamsDict = [DigestParameterKey: String]()
+		
+		//	Basic request first, no auth yet.
+		print("Initial HTTP request without any authorisation.")
+		do {
+			let request = HTTPClientRequest(url: serverURL)
+			let response = try await httpClient.execute(request, timeout: .seconds(30))
+			print("HTTP header for first request: ", response)
+			let body = try await response.body.collect(upTo: 1024 * 1024) // 1 MB
+			print(String(buffer: body))
+			print(" ")
+			
+			//	should be 401
+			if response.status != .unauthorized {
+				print("Hmm, we should have had an 'unauthorised' status, but instead we got: \(response.status)")
+				return
+			}
+			
+			//	Get the Digest Auth paramters from the response headers
+			guard let params = digestChallengeParametersDictionary(fromResponse: response) else {
+				print("unable to get digest params")
+				return
+			}
+			digestParamsDict = params
+			cavemanLineBreak("Digest Parameters: \(String(describing: digestParamsDict))")
+		} catch {
+			print("basic request failed:", error)
+			return
+		}
 
+		
+		
+		//	Make a second request, with digest-response in an 'Authorization' header.
+		
+		//	Do the hashing....
+		let responseHashString = doHashing(withDigestParameters: digestParamsDict)
+		guard responseHashString != nil else {
+			print("Unable to build response hashes...")
+			return
+		}
+		
+		cavemanBreakSection("Second http request with an auth header…")
+		//	Build the new request including the digest response header
+		//	Build the auth header
+		let authHeaderString = buildAuthorisationHeader(digestParameters: digestParamsDict, responseHashString: responseHashString!)
+
+		print("Authorized request header: \(authHeaderString)")
 		var authorisedRequest = HTTPClientRequest(url: serverURL)
+
+		let authHeaderName = "Authorization"
 		authorisedRequest.headers.add(name: authHeaderName, value: authHeaderString)
+		cavemanLineBreak("All headers: \(authorisedRequest.headers)")
 
 		do {
 			let response = try await httpClient.execute(authorisedRequest, timeout: .seconds(30))
+			cavemanLineBreak("Authorised HTTP request response: \(response)")
 
-			print("HTTP head", response)
 			let body = try await response.body.collect(upTo: 1024 * 1024) // 1 MB
 			print(String(buffer: body))
 
 			//	What status did we get back?
-			print("Response status: \(response.status)")
-
+			cavemanLineBreak("Response status: \(response.status)")
 		} catch {
 			print("authorised request failed:", error)
 			return
@@ -380,21 +451,16 @@ class DigestAuthSample {
 		
 	}
 	
-	func MD5(string: String) -> String {
-		let digest = Insecure.MD5.hash(data: Data(string.utf8))
-		return digest.map {
-			String(format: "%02hhx", $0)
-		}.joined()
-	}
-
 }
 
 
 
+//	Main entry point.
+cavemanBreakSection("Main Entry")
+
 let serverURL = "http://httpbin.org/digest-auth/auth/testUserName/testPassword"
 let digestAuthSample = DigestAuthSample(serverURL: serverURL, username: "testUserName", password: "testPassword")
 //let digestAuthSample = DigestAuthSample(serverURL: "http://192.168.1.36/ISAPI/Streaming/channels/101/picture", username: "gateControl", password: "badgers123")
-
 
 digestAuthSample.startUp()
 
@@ -403,6 +469,7 @@ Task{
 	await digestAuthSample.shutdown()
 }
 
+cavemanBreakSection("runloop run forever…")
 RunLoop.main.run(until: .distantFuture)
-
+cavemanBreakSection("Should never get here…")
 
