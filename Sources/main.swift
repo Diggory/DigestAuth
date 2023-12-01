@@ -140,6 +140,10 @@ class DigestAuthSample {
 	var username: String
 	///	The password we will be providing to the server for authentication
 	var password: String
+	
+	///	Client (us) nonce
+	///	FIXME: Should not be fixed...
+	let cnonce = "deadbeef"
 
 	///	Async HTTP client instance
 	var httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
@@ -203,23 +207,28 @@ class DigestAuthSample {
 	///	Takes a string of the form 'key="value"' and turns it into a labelled tuple.
 	func digestParamStringToTuple(_ param: String) -> (key: String, value: String)? {
 		//	e.g. algorithm="MD5"
-		let keyValueArray = param.components(separatedBy: "=")
-		if keyValueArray.count != 2 {
+		//	Can't use components(separatedBy: "=") as that character can appear in the hash value.
+		
+		//	Instead find the first "=" and split on that.
+		let equalIndex = param.firstIndex(of: "=")
+		guard equalIndex != nil else {
 			print("Error: paramter is not correctly formed: \(param)")
 			return nil
 		}
-		let key = keyValueArray[0]
-		var value = keyValueArray[1]
+				
+		let key = param.prefix(upTo: equalIndex!)
+		var value = param.suffix(from: param.index(equalIndex!, offsetBy: 1))
+//		print("k/v: \(key)/\(value)")
 		
 		//	Value should be wrapped in quote marks (sometimes.  Accept it anyway…)
 		if !(value.first == "\"" && value.last == "\"") {
 			print("Note: paramter (\(key)) value is not wrapped in quotes: \(value)")
 		} else {
 			//	Trim quotes
-			value = String(value.dropLast())
-			value = String(value.dropFirst())
+			value = value.dropLast()
+			value = value.dropFirst()
 		}
-		return (key: key, value: value)
+		return (key: String(key), value: String(value))
 	}
 	
 
@@ -253,13 +262,17 @@ class DigestAuthSample {
 		var ha1_credentialsHash: String
 		switch hashingAlgo {
 		case .MD5sess:
+			print("HA1 hash: MD5sess --> HA1 = MD5(MD5(username:realm:password):nonce:cnonce)")
 			//	HA1 = MD5(MD5(username:realm:password):nonce:cnonce)
 			let credentialsHash = MD5(string: "\(username):\(digestParamsDict[.realm] ?? ""):\(password)")
 			ha1_credentialsHash = MD5(string: "\(credentialsHash):\(digestParamsDict[.nonce] ?? ""):\(digestParamsDict[.cnonce] ?? "")")
 		default:
+			print("HA1 hash: MD5 --> HA1 = MD5(username:realm:password)")
+			print("HA1 hash: MD5 --> HA1 = MD5(\(username):\(digestParamsDict[.realm] ?? ""):\(password))")
 			//	Used when no algo specificed or MD5 specified
 			//	HA1 = MD5(username:realm:password)
 			ha1_credentialsHash = MD5(string: "\(username):\(digestParamsDict[.realm] ?? ""):\(password)")
+			print("HA1 = \(ha1_credentialsHash)")
 		}
 		
 		//	QOP Hash...
@@ -270,6 +283,7 @@ class DigestAuthSample {
 			HA2 = MD5(method:digestURI:MD5(entityBody))
 		 */
 		var ha2_methodURIHash: String
+		let digestURI = relativePath()
 		switch qopDirective {
 		case .authInt:
 			//	HA2 = MD5(method:digestURI:MD5(entityBody))
@@ -278,8 +292,14 @@ class DigestAuthSample {
 		default:
 			//	Used when qop is auth or unspecified
 			//	HA2 = MD5(method:digestURI)
-			//	FIXME: Method is fixed here.
-			ha2_methodURIHash = MD5(string: "GET:\(serverURL)")
+			print("HA2 = MD5(method:digestURI)")
+			//	FIXME: Method is fixed here.  Also Optional is handled badly...
+			if digestURI == nil {
+				print("Warning, digestURL is nil! Using '/' instead...")
+			}
+			print("HA2 = MD5(GET:\(digestURI ?? "/"))")
+			ha2_methodURIHash = MD5(string: "GET:\(digestURI ?? "/")")
+			print("HA2 = \(ha2_methodURIHash)")
 		}
 
 		
@@ -294,6 +314,7 @@ class DigestAuthSample {
 		switch qopDirective {
 		case .auth, .authInt:
 			//	response = MD5(HA1:nonce:nonceCount:cnonce:qop:HA2)
+			print("response = MD5(HA1:nonce:nonceCount:cnonce:qop:HA2)")
 			//	FIXME: Don't hard-code nonceCount
 			/*
 			 https://www.rfc-editor.org/rfc/rfc2617#section-3
@@ -304,7 +325,9 @@ class DigestAuthSample {
 				  value, the client sends "nc=00000001".
 			 */
 			let nonceCount = "00000001"
-			responseHash = MD5(string: "\(ha1_credentialsHash):\(digestParamsDict[.nonce] ?? ""):\(nonceCount):\(digestParamsDict[.cnonce] ?? ""):\(digestParamsDict[.qop] ?? ""):\(ha2_methodURIHash)")
+			responseHash = MD5(string: "\(ha1_credentialsHash):\(digestParamsDict[.nonce] ?? ""):\(nonceCount):\(cnonce):\(digestParamsDict[.qop] ?? ""):\(ha2_methodURIHash)")
+			print("response = MD5(\(ha1_credentialsHash):\(digestParamsDict[.nonce] ?? ""):\(nonceCount):\(cnonce):\(digestParamsDict[.qop]!):\(ha2_methodURIHash))")
+			print("responseHash = \(responseHash)")
 		default:
 			//	Unspecified qopDirective
 			//	response = MD5(HA1:nonce:HA2)
@@ -336,22 +359,10 @@ class DigestAuthSample {
 		authHeaderString.append(digestNonce)
 		
 		//	The URL that we are requesting
-		
-		//	Absolute URI
-		let digestURI = "uri=\"\(serverURL)\", "
+		let digestURIString = relativePath()
+		let digestURI = "uri=\"\(digestURIString ?? "/")\", "
 		authHeaderString.append(digestURI)
-
-		//	Only the path
-//		let fullURL = URL(string:serverURL)
-//		if #available(macOS 13.0, *) {
-//			let path = fullURL?.path()
-//			let digestURI = "uri=\"\(path ?? "/")\", "
-//			authHeaderString.append(digestURI)
-//		} else {
-//			print("I'm not expecting this code to be run before macOS 13...")
-//			return
-//		}
-
+		
 		//	The hash that we calculated containing the password and other data.
 		let digestResponse = "response=\"\(responseHashString)\", "
 		authHeaderString.append(digestResponse)
@@ -363,14 +374,16 @@ class DigestAuthSample {
 
 		//	FIXME: Should be a one-time number generated by the client (us).
 		//	Client nonce
-		let digestCNonce = "cnonce=\"00000000\", "
+		let digestCNonce = "cnonce=\"\(cnonce)\", "
 		if digestParamsDict[.qop] != nil {
 			authHeaderString.append(digestCNonce)
 		}
 
-		//	Re-use from original response: Opaque
-		let digestOpaque = "opaque=\"\(digestParamsDict[.opaque] ?? "")\", "
-		authHeaderString.append(digestOpaque)
+		//	Re-use from original response: Opaque (if there is one)
+		if let opaque = digestParamsDict[.opaque] {
+			let digestOpaque = "opaque=\"\(opaque)\", "
+			authHeaderString.append(digestOpaque)
+		}
 
 		//	Re-use from original response: QOP
 		let digestQOP = "qop=\"\(digestParamsDict[.qop] ?? "")\", "
@@ -384,6 +397,17 @@ class DigestAuthSample {
 		}
 		
 		return authHeaderString
+	}
+	
+	func relativePath() -> String? {
+		let fullURL = URL(string:serverURL)
+		if #available(macOS 13.0, *) {
+			let path = fullURL?.path()
+			return path
+		} else {
+			print("I'm not expecting this code to be run before macOS 13..!!!!")
+			return nil
+		}
 	}
 	
 	
@@ -459,6 +483,40 @@ class DigestAuthSample {
 		
 	}
 	
+	func testHashing() {
+		/*
+		 
+		 HA1 = MD5( "Mufasa:testrealm@host.com:Circle Of Life" )
+
+			   = 939e7578ed9e3c518a452acee763bce9
+
+		   HA2 = MD5( "GET:/dir/index.html" )
+
+			   = 39aff3a2bab6126f332b942af96d3366
+
+		   Response = MD5( "939e7578ed9e3c518a452acee763bce9:\
+
+							dcd98b7102dd2f0e8b11d0f600bfb0c093:\
+
+							00000001:0a4f113b:auth:\
+
+							39aff3a2bab6126f332b942af96d3366" )
+
+					= 6629fae49393a05397450978507c4ef1
+		 
+		 */
+		cavemanBreakSection("Test Hashing")
+
+		var expected = "939e7578ed9e3c518a452acee763bce9"
+		var computed = MD5(string: "Mufasa:testrealm@host.com:Circle Of Life")
+		print("\(expected) \n vs \n\(computed)")
+
+		expected = "39aff3a2bab6126f332b942af96d3366"
+		computed = MD5(string: "GET:/dir/index.html")
+		print("\(expected) \n vs \n\(computed)")
+
+	}
+	
 }
 
 
@@ -466,19 +524,31 @@ class DigestAuthSample {
 //	Main entry point.
 cavemanBreakSection("Main Entry")
 
+//	Hikvision NVR
+//let digestAuthSample = DigestAuthSample(serverURL: "http://192.168.1.36/ISAPI/Streaming/channels/101/picture", username: "gateControl", password: "badgers123")
+
 //	https://stackoverflow.com/questions/6509278/authentication-test-servers
 
 ///	Address of the endpoint on the server that we are tesing against
-let serverURL = "http://httpbin.org/digest-auth/auth/testUserName/testPassword"
-let digestAuthSample = DigestAuthSample(serverURL: serverURL, username: "testUserName", password: "testPassword")
-//let digestAuthSample = DigestAuthSample(serverURL: "http://192.168.1.36/ISAPI/Streaming/channels/101/picture", username: "gateControl", password: "badgers123")
+let testServerURL = "http://httpbin.org/digest-auth/auth/myTestUsername/myTestPassword"
+
+//	HTTPBin Test Server
+let digestAuthSample = DigestAuthSample(serverURL: testServerURL, username: "myTestUsername", password: "myTestPassword")
+
+//	Local MAMP setup
+//let digestAuthSample = DigestAuthSample(serverURL: "http://localhost:8888/dir/index.html", username: "Mufasa", password: "Circle Of Life")
+
+
 
 digestAuthSample.startUp()
+
+digestAuthSample.testHashing()
 
 Task{
 	await digestAuthSample.go()
 	await digestAuthSample.shutdown()
 }
+
 
 cavemanBreakSection("runloop run forever…")
 RunLoop.main.run(until: .distantFuture)
