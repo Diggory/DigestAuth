@@ -465,6 +465,8 @@ class DigestAuthSample {
 //	Main entry point.
 cavemanBreakSection("Main Entry")
 
+//	https://stackoverflow.com/questions/6509278/authentication-test-servers
+
 ///	Address of the endpoint on the server that we are tesing against
 let serverURL = "http://httpbin.org/digest-auth/auth/testUserName/testPassword"
 let digestAuthSample = DigestAuthSample(serverURL: serverURL, username: "testUserName", password: "testPassword")
