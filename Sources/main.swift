@@ -71,12 +71,6 @@ func cavemanLineBreak(_ functionName: String) {
 class DigestAuthSample {
 	typealias DigestParametersDictionary = [DigestParameterKey: String]
 
-	internal init(serverURL: String, username: String, password: String)  {
-		self.serverURL = serverURL
-		self.username = username
-		self.password = password
-	}
-
 	///	Keys used in the Digest Header
 	///	https://www.rfc-editor.org/rfc/rfc2617#section-3.2.1
 	enum DigestParameterKey: String, Hashable {
@@ -86,17 +80,17 @@ class DigestAuthSample {
 		case nonce
 		///	a quoted string of one or more tokens indicating the "quality of protection" values supported by the server
 		case qop
-		///	 A flag, indicating that the previous request from the client was rejected because the nonce value was stale  
+		///	 A flag, indicating that the previous request from the client was rejected because the nonce value was stale
 		///	 (TRUE/FALSE)
 		case stale
 		///	A quoted, space-separated list of URIs, as specified in RFC XURI [7], that define the protection space
 		case domain
 		///	A string to be displayed to users so they know which username and password to use
 		case realm
-		///	A string indicating a pair of algorithms used to produce the digest and a checksum. 
+		///	A string indicating a pair of algorithms used to produce the digest and a checksum.
 		///	If this is not present it is assumed to be "MD5"
 		case algorithm
-		///	A string of data, specified by the server, which should be returned by the client unchanged 
+		///	A string of data, specified by the server, which should be returned by the client unchanged
 		///	in the Authorization header of subsequent requests with URIs in the same protection space
 		case opaque
 		
@@ -132,6 +126,13 @@ class DigestAuthSample {
 		case authInt = "auth-int"
 		case unhandled
 	}
+	
+	internal init(serverURL: String, username: String, password: String)  {
+		self.serverURL = serverURL
+		self.username = username
+		self.password = password
+	}
+
 
 	///	The address of the endpoint that we are trying to reach
 	var serverURL: String
