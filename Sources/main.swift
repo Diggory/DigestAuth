@@ -69,8 +69,8 @@ func cavemanLineBreak(_ functionName: String) {
 
 public extension String {
 	///	base64EncodedString
-	var base64EncodedString:String{
-		if let data = data(using: .utf8){
+	var base64EncodedString: String {
+		if let data = data(using: .utf8) {
 			return data.base64EncodedString()
 		}
 		return ""
@@ -79,8 +79,8 @@ public extension String {
 
 public extension Int {
 	
-	//	Gives the number of numbers in the integer
-	func countOfNumbers() -> Int{
+	//	Gives the number of digits in the integer
+	func countOfDigits() -> Int{
 		// Store the total count
 		var count = 0
 		
@@ -322,7 +322,7 @@ class DigestAuthSample {
 	
 	///	Returns the Nonce Count as a string, padded with leading Zeros so that the string is 8 chars long
 	func paddedNonceCountString() -> String {
-		let paddingZeros = 8 - nonceCount.countOfNumbers()
+		let paddingZeros = 8 - nonceCount.countOfDigits()
 		var returnString = ""
 		
 		(0..<paddingZeros).forEach{Int in returnString.append("0") }
@@ -394,7 +394,7 @@ class DigestAuthSample {
 			print("HA2 = MD5(method:digestURI)")
 			//	FIXME: Method is fixed here.  Also Optional is handled badly...
 			if digestURI == nil {
-				print("Warning, digestURL is nil! Using '/' instead...")
+				print("WARNING, digestURL is nil! Using '/' instead...")
 			}
 			print("HA2 = MD5(GET:\(digestURI ?? "/"))")
 			ha2_methodURIHash = MD5(string: "GET:\(digestURI ?? "/")")
@@ -416,7 +416,6 @@ class DigestAuthSample {
 
 			//	response = MD5(HA1:nonce:nonceCount:cnonce:qop:HA2)
 			print("response = MD5(HA1:nonce:nonceCount:cnonce:qop:HA2)")
-			//	FIXME: Don't hard-code nonceCount
 			/*
 			 https://www.rfc-editor.org/rfc/rfc2617#section-3
 			 The nc-value is the hexadecimal
@@ -744,10 +743,10 @@ cavemanBreakSection("Main Entry")
 //	https://stackoverflow.com/questions/6509278/authentication-test-servers
 
 //	Hikvision NVR
-//let digestAuthSample = DigestAuthSample(serverURL: "http://192.168.1.36/ISAPI/Streaming/channels/101/picture", username: "gateControl", password: "badgers123")
+ let digestAuthSample = DigestAuthSample(serverURL: "http://192.168.1.36/ISAPI/Streaming/channels/101/picture", username: "gateControl", password: "badgers123")
 
 //	HTTPBin Test Server
-let digestAuthSample = DigestAuthSample(serverURL: "http://httpbin.org/digest-auth/auth/myTestUsername/myTestPassword", username: "myTestUsername", password: "myTestPassword")
+//let digestAuthSample = DigestAuthSample(serverURL: "http://httpbin.org/digest-auth/auth/myTestUsername/myTestPassword", username: "myTestUsername", password: "myTestPassword")
 
 //	Local MAMP setup
 //let digestAuthSample = DigestAuthSample(serverURL: "http://localhost:8888/dir/index.html", username: "Mufasa", password: "Circle Of Life")
